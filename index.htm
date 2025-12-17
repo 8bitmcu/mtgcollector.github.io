@@ -34,14 +34,14 @@
           z-index: 1;
           overflow: hidden;
           width: 100%;
-          height: 48%;
+          height: 25%;
           top: 0;
           left: 0;
           position: fixed !important;
       }
 
       .splash-container h1 {
-          font-size: 20px;
+          font-size: 5em;
           font-weight: bold;
           color: white;
           padding: 1em 1.6em;
@@ -55,7 +55,7 @@
 
       .content-wrapper {
           position: absolute;
-          top: 37%;
+          top: 25%;
           width: 100%;
           min-height: 12%;
           z-index: 2;
@@ -65,6 +65,8 @@
 
       #content {
           padding: 1em 1em 3em;
+          max-width: 1280px;
+          margin: 0 auto;
       }
 
       .footer {
@@ -75,52 +77,78 @@
           text-align: center;
       }
 
-      .sets a {
-        font-size: 250%;
+      .sets {
+        display: grid;
+      }
+      .sets .set {
         margin: 1em;
-        display: block;
+        display: flex;
+        flex-direction: row;
+        background-color: #eee;
+        padding: 1em;
+        border-radius: 15px;
+      }
+      .sets .info {
+        display: flex;
+        flex-direction: column;
+      }
+      .sets .ss {
+        font-size: 350%;
+        width: 68px;
+        color: #1f8dd6;
       }
 
-      .ss {
-        margin-top: -8px;
-        width: 64px;
+      .sets a {
+        font-size: 150%;
       }
 
+
+      .cards {
+        display: grid;
+        grid-template-columns: auto auto auto auto;
+      }
       .card {
-        margin: 5px;
+        margin: 15px auto;
+        display: flex;
+        flex-direction: column;
+        background-color: #eee;
+        border-radius: 15px;
+      }
+      .card img {
         width: 250px;
-        height: 350px;
-        display: inline-block;
-        position: relative;
-        background-size: contain;
-        background-repeat: no-repeat;
+        padding: 15px;
       }
-      .card .price {
-        position: absolute;
-        font-size: 2em;
-        color: white;
-        text-shadow: 2px 2px 2px black;
-        left: 96px;
-        bottom: 0px;
+      .card .info {
+        display: flex;
+        flex-direction: column;
+        padding: 0 15px 15px 15px;
+        line-height: 1.3;
       }
-      .card .qty {
-        position: absolute;
-        font-size: 1.6em;
-        color: white;
-        text-shadow: 2px 2px 2px black;
-        left: 100px;
-        top: 0px;
+      .card .info .name {
+        color: black;
+        font-size: 110%;
+      }
+
+
+      .stats {
+        display: flex;
+      }
+      .stats ul {
+        margin: 0 2em 0 0;
       }
 
       @media (min-width: 48em) {
           body {
               font-size: 16px;
           }
+          .sets {
+            grid-template-columns: auto auto;
+          }
       }
 
       @media (min-width: 78em) {
-          .splash-container h1 {
-              font-size: 7em;
+          .sets {
+            grid-template-columns: auto auto auto;
           }
       }
     </style>
@@ -142,6 +170,12 @@
         Papa.parse(ud, {
           complete: function(results) {
             user_data = results.data;
+            card_sum = 0;
+            unique_editions = 0;
+            unique_cards = 0;
+            rares = 0;
+            uncommons = 0;
+            commons = 0;
 
             user_data
               // filter out first item which is csv column names
@@ -182,9 +216,14 @@
 
       function viewCard(item) {
         let img = "https://cards.scryfall.io/large/front/" + item[8][0] + "/" + item[8][1] + "/" + item[8] + ".jpg";
-        return m("div", {class: "card", style: "background-image: url('" + img + "')"}, [
-          m("span", {class: "price"}, item[9]),
-          m("span", {class: "qty"}, item[6] + "x")
+
+        return m("div", {class: "card"}, [
+          m("img", {src: img}),
+          m("div", {class: "info"}, [
+            m("span", {class: "name"}, item[0]),
+            m("span", "Unit Price: $" + item[9]),
+            m("span", "Quantity: " + item[6])
+          ])
         ]);
       }
 
@@ -205,13 +244,17 @@
               }}),
               m("div", {style: {display: user_data.length > 0 ? "" : "none"}}, [
                 m("h1", "Stats"),
-                m("ul", [
-                  m("li", card_sum + " cards loaded"),
-                  m("li", unique_cards + " unique cards"),
-                  m("li", unique_editions + " unique editions"),
-                  m("li", rares + " rares"),
-                  m("li", uncommons + " uncommons"),
-                  m("li", commons + " commons")
+                m("div", {class: "stats"}, [
+                  m("ul", [
+                    m("li", card_sum + " cards loaded"),
+                    m("li", unique_cards + " unique cards"),
+                    m("li", unique_editions + " unique editions"),
+                  ]),
+                  m("ul", [
+                    m("li", rares + " rares"),
+                    m("li", uncommons + " uncommons"),
+                    m("li", commons + " commons")
+                  ])
                 ]),
                 m("h1", "Search"),
                 m("input", {type: "text", onkeyup: function(e) { if(e.code == "Enter") m.route.set("/search/:term", {term: this.value}) }}),
@@ -227,9 +270,14 @@
                       return new Date(a[17]).getTime() - new Date(b[17]).getTime();
                     })
                     .map(function(item) {
-                      return m(m.route.Link, {href: "/set/" + item[3]}, [
+                      return m("div", {class: "set"}, [
                         m("i", {class: "ss ss-" + item[3]}),
-                        m("span", item[15])
+                        m("div", {class: "info"}, [
+                          m(m.route.Link, {href: "/set/" + item[3]}, [
+                            m("span", item[15])
+                          ]),
+                          m("span", item[17])
+                        ])
                       ])
                     })
                   ]),
