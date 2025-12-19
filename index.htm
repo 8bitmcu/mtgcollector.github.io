@@ -104,6 +104,15 @@
         display: flex;
         flex-direction: column;
       }
+      .sets .info ul {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+      }
+      .sets .info li {
+        display: inline-block;
+        margin-right: 2em;
+      }
       .sets .ss {
         font-size: 350%;
         width: 68px;
@@ -173,9 +182,11 @@
         set_data: [],
         user_data: [],
         stats: {
+          total_worth: 0,
           card_sum: 0,
           unique_editions: 0,
           unique_cards: 0,
+          mythics: 0,
           rares: 0,
           uncommons: 0,
           commons: 0
@@ -184,6 +195,18 @@
         set_sort_by: "Release",
         cards_sort_by: "Name",
         cards_sort_order: "Ascending"
+      }
+
+      var setOrig = m.route.set;
+      m.route.set = function(path, data, options) {
+        setOrig(path, data, options);
+        window.scrollTo(0,0);
+      }
+
+      var linkOrig = m.route.link;
+      m.route.link = function(vnode) {
+        linkOrig(vnode);
+        window.scrollTo(0,0);
       }
 
       function viewCard(item) {
@@ -263,8 +286,10 @@
                   m("li", model.stats.card_sum + " cards loaded"),
                   m("li", model.stats.unique_cards + " unique cards"),
                   m("li", model.stats.unique_editions + " unique editions"),
+                  m("li", "$" + model.stats.total_worth + " total worth"),
                 ]),
                 m("ul", [
+                  m("li", model.stats.mythics + " mythics"),
                   m("li", model.stats.rares + " rares"),
                   m("li", model.stats.uncommons + " uncommons"),
                   m("li", model.stats.commons + " commons")
@@ -317,7 +342,21 @@
                         m(m.route.Link, {href: "/set/" + item[3]}, [
                           m("span", item[15])
                         ]),
-                        m("span", item[17])
+                        m("span", item[17]),
+                        m("ul", [
+                          m("li", model.user_data
+                            .filter(x => x[1] == item[3])
+                            .map(x => parseInt(x[6]))
+                            .reduce((x, y) => x + y) + " card(s)"
+                          ),
+                          m("li", "$" + model.user_data
+                            .filter(x => x[1] == item[3])
+                            .filter(x => x[9] != '')
+                            .map(x => parseFloat(x[9]) * parseInt(x[6]))
+                            .reduce((x, y) => x + y, 0)
+                            .toFixed(2)
+                          )
+                        ])
                       ])
                     ])
                   })
@@ -369,36 +408,51 @@
             Papa.parse(ud, {
               complete: function(results) {
                 model.user_data = results.data;
-                model.stats.card_sum = 0;
-                model.stats.unique_editions = 0;
-                model.stats.unique_cards = 0;
-                model.stats.rares = 0;
-                model.stats.uncommons = 0;
-                model.stats.commons = 0;
 
-                model.user_data
+                model.stats.card_sum = model.user_data
                   // filter out first item which is csv column names
                   .filter((item, index, arr) => arr.indexOf(item) != 0)
                   // sum all quanitity column values
-                  .map(x => model.stats.card_sum += parseInt(x[6]));
+                  .map(x => parseInt(x[6]))
+                  .reduce((x, y) => x + y, 0)
 
-                model.user_data
+                model.stats.total_worth = model.user_data
+                  // filter out first item which is csv column names
+                  .filter((item, index, arr) => arr.indexOf(item) != 0)
+                  // filter out empty prices
+                  .filter(item => item[9] != '')
+                  // sum all price column values
+                  .map(x => parseFloat(x[9]) * parseInt(x[6]))
+                  .reduce((x, y) => x + y, 0)
+                  .toFixed(0)
+
+                model.stats.mythics = model.user_data
+                  // filter for rarity
+                  .filter(item => item[5] == "mythic")
+                  // sum all quanitity column values
+                  .map(x => parseInt(x[6]))
+                  .reduce((x, y) => x + y, 0)
+
+                model.stats.rares = model.user_data
                   // filter for rarity
                   .filter(item => item[5] == "rare")
                   // sum all quanitity column values
-                  .map(x => model.stats.rares += parseInt(x[6]));
+                  .map(x => parseInt(x[6]))
+                  .reduce((x, y) => x + y, 0)
 
-                model.user_data
+                model.stats.uncommons = model.user_data
                   // filter for rarity
                   .filter(item => item[5] == "uncommon")
                   // sum all quanitity column values
-                  .map(x => model.stats.uncommons += parseInt(x[6]));
+                  .map(x => parseInt(x[6]))
+                  .reduce((x, y) => x + y, 0)
 
-                model.user_data
+                model.stats.commons = model.user_data
                   // filter for rarity
                   .filter(item => item[5] == "common")
                   // sum all quanitity column values
-                  .map(x => model.stats.commons += parseInt(x[6]));
+                  .map(x => parseInt(x[6]))
+                  .reduce((x, y) => x + y, 0)
 
                 model.stats.unique_editions = model.set_data
                   // filter out first item which is csv column names
