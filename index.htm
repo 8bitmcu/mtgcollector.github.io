@@ -23,10 +23,17 @@
       label {
           color: #34495e;
       }
+      label {
+        margin-right: 0.5em;
+      }
 
       a {
           color: #1f8dd6;
           text-decoration: none;
+      }
+
+      fieldset {
+        border: none;
       }
 
       .splash-container {
@@ -63,6 +70,11 @@
 
       }
 
+      .control-group {
+        display: inline-block;
+        margin-right: 3em;
+      }
+
       #content {
           padding: 1em 1em 3em;
           max-width: 1280px;
@@ -84,7 +96,7 @@
         margin: 1em;
         display: flex;
         flex-direction: row;
-        background-color: #eee;
+        background-color: #d8f2ff;
         padding: 1em;
         border-radius: 15px;
       }
@@ -111,7 +123,7 @@
         margin: 15px auto;
         display: flex;
         flex-direction: column;
-        background-color: #eee;
+        background-color: #d8f2ff;
         border-radius: 15px;
       }
       .card img {
@@ -127,6 +139,9 @@
       .card .info .name {
         color: black;
         font-size: 110%;
+      }
+      .card .strong {
+        color: black;
       }
 
 
@@ -153,65 +168,22 @@
       }
     </style>
     <script>
-      var set_data = [];
-      var user_data = [];
-      var card_sum = 0;
-      var unique_editions = 0;
-      var unique_cards = 0;
-      var rares = 0;
-      var uncommons = 0;
-      var commons = 0;
 
-      function loadUserData() {
-        let ud = localStorage.getItem("user_data");
-        if (ud == null) {
-          return;
-        }
-        Papa.parse(ud, {
-          complete: function(results) {
-            user_data = results.data;
-            card_sum = 0;
-            unique_editions = 0;
-            unique_cards = 0;
-            rares = 0;
-            uncommons = 0;
-            commons = 0;
-
-            user_data
-              // filter out first item which is csv column names
-              .filter((item, index, arr) => arr.indexOf(item) != 0)
-              // sum all quanitity column values
-              .map(x => card_sum += parseInt(x[6]));
-
-            user_data
-              // filter for rarity
-              .filter(item => item[5] == "rare")
-              // sum all quanitity column values
-              .map(x => rares += parseInt(x[6]));
-
-            user_data
-              // filter for rarity
-              .filter(item => item[5] == "uncommon")
-              // sum all quanitity column values
-              .map(x => uncommons += parseInt(x[6]));
-
-            user_data
-              // filter for rarity
-              .filter(item => item[5] == "common")
-              // sum all quanitity column values
-              .map(x => commons += parseInt(x[6]));
-
-            unique_editions = set_data
-              // filter out first item which is csv column names
-              .filter((item, index, arr) => arr.indexOf(item) != 0)
-              // filter out editions that we don't have
-              .filter(item => user_data.map(x => x[1]).indexOf(item[3]) != -1)
-              .length;
-
-            unique_cards = [...new Set(user_data.map(x => x[0]))].length;
-            m.redraw()
-          }
-        });
+      var model = {
+        set_data: [],
+        user_data: [],
+        stats: {
+          card_sum: 0,
+          unique_editions: 0,
+          unique_cards: 0,
+          rares: 0,
+          uncommons: 0,
+          commons: 0
+        },
+        set_sort_order: "Ascending",
+        set_sort_by: "Release",
+        cards_sort_by: "Name",
+        cards_sort_order: "Ascending"
       }
 
       function viewCard(item) {
@@ -221,113 +193,234 @@
           m("img", {src: img}),
           m("div", {class: "info"}, [
             m("span", {class: "name"}, item[0]),
-            m("span", "Unit Price: $" + item[9]),
-            m("span", "Quantity: " + item[6])
+            m("span", "Unit Price: ", [
+              m("span", {class: "strong"}, "$" + parseFloat(item[9]).toFixed(2))
+            ]),
+            m("span", "Quantity: ", [
+              m("span", {class: "strong"}, item[6])
+            ])
           ])
         ]);
       }
 
-      function onDOMReady() {
-        var index = {
-          view: function(vnode) {
-            return [
-              m("h1", "Upload Manabox .csv"),
-              m("input", {type: "file", id: "csv", name: "csv", accept: "text/csv", onchange: function() {
-                for (const file of event.target.files) {
-                  const reader = new FileReader();
-                  reader.onload = function(e) {
-                    localStorage.setItem("user_data", reader.result);
-                    loadUserData();
-                  };
-                  reader.readAsText(file);
-                }
-              }}),
-              m("div", {style: {display: user_data.length > 0 ? "" : "none"}}, [
-                m("h1", "Stats"),
-                m("div", {class: "stats"}, [
-                  m("ul", [
-                    m("li", card_sum + " cards loaded"),
-                    m("li", unique_cards + " unique cards"),
-                    m("li", unique_editions + " unique editions"),
-                  ]),
-                  m("ul", [
-                    m("li", rares + " rares"),
-                    m("li", uncommons + " uncommons"),
-                    m("li", commons + " commons")
+      function sortCard(a, b) {
+        if (model.cards_sort_by == "Name" && model.cards_sort_order == "Ascending")
+          return ('' + a[0]).localeCompare(b[0]);
+        if (model.cards_sort_by == "Name" && model.cards_sort_order == "Descending")
+          return ('' + b[0]).localeCompare(a[0]);
+        if (model.cards_sort_by == "Quantity" && model.cards_sort_order == "Ascending")
+          return a[6] - b[6];
+        if (model.cards_sort_by == "Quantity" && model.cards_sort_order == "Descending")
+          return b[6] - a[6];
+        if (model.cards_sort_by == "Unit Price" && model.cards_sort_order == "Ascending")
+          return a[9] - b[9];
+        if (model.cards_sort_by == "Unit Price" && model.cards_sort_order == "Descending")
+          return b[9] - a[9];
+      }
+
+      function orderCards() {
+        return m("fieldset", [
+          m("div", {class: "control-group"}, [
+            m("label", {for: "sort-by"}, "Sort By: "),
+            m("select", {id: "sort-by", onchange: function(e) {
+              model.cards_sort_by = e.target.value;
+            }}, [
+              m("option", {selected: model.cards_sort_by == "Name"}, "Name"),
+              m("option", {selected: model.cards_sort_by == "Quantity"}, "Quantity"),
+              m("option", {selected: model.cards_sort_by == "Unit Price"}, "Unit Price"),
+            ])
+          ]),
+          m("div", {class: "control-group"}, [
+            m("label", {for: "sort-order"}, "Sort Order: "),
+            m("select", {id: "sort-order", onchange: function(e) {
+              model.cards_sort_order = e.target.value;
+            }}, [
+              m("option", {selected: model.cards_sort_order == "Ascending"}, "Ascending"),
+              m("option", {selected: model.cards_sort_order == "Descending"}, "Descending")
+            ])
+          ])
+        ])
+      }
+
+      var index = {
+        view: function(vnode) {
+          return [
+            m("h1", "Upload Manabox .csv"),
+            m("input", {type: "file", id: "csv", name: "csv", accept: "text/csv", onchange: function() {
+              for (const file of event.target.files) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                  localStorage.setItem("user_data", reader.result);
+                  reloadData();
+                };
+                reader.readAsText(file);
+              }
+            }}),
+            m("div", {style: {display: model.user_data.length > 0 ? "" : "none"}}, [
+              m("h1", "Stats"),
+              m("div", {class: "stats"}, [
+                m("ul", [
+                  m("li", model.stats.card_sum + " cards loaded"),
+                  m("li", model.stats.unique_cards + " unique cards"),
+                  m("li", model.stats.unique_editions + " unique editions"),
+                ]),
+                m("ul", [
+                  m("li", model.stats.rares + " rares"),
+                  m("li", model.stats.uncommons + " uncommons"),
+                  m("li", model.stats.commons + " commons")
+                ])
+              ]),
+              m("h1", "Search"),
+              m("input", {type: "text", onkeyup: function(e) { if(e.code == "Enter") m.route.set("/search/:term", {term: this.value}) }}),
+              m("h1", "Browse Sets"),
+              m("fieldset", [
+                m("div", {class: "control-group"}, [
+                  m("label", {for: "sort-by"}, "Sort By: "),
+                  m("select", {id: "sort-by", onchange: function(e) {
+                    model.set_sort_by = e.target.value;
+                  }}, [
+                    m("option", {selected: model.set_sort_by == "Release"}, "Release"),
+                    m("option", {selected: model.set_sort_by == "Name"}, "Name")
                   ])
                 ]),
-                m("h1", "Search"),
-                m("input", {type: "text", onkeyup: function(e) { if(e.code == "Enter") m.route.set("/search/:term", {term: this.value}) }}),
-                m("h1", "Browse Sets"),
-                m("div", {class : "sets"}, [
-                  set_data
-                    // filter out first item which is csv column names
-                    .filter((item, index, arr) => arr.indexOf(item) != 0)
-                    // filter out editions that we don't have
-                    .filter(item => user_data.map(x => x[1]).indexOf(item[3]) != -1)
-                    // sort by release date
-                    .sort(function(a, b) {
+                m("div", {class: "control-group"}, [
+                  m("label", {for: "sort-order"}, "Sort Order: "),
+                  m("select", {id: "sort-order", onchange: function(e) {
+                    model.set_sort_order = e.target.value;
+                  }}, [
+                    m("option", {selected: model.set_sort_order == "Ascending"}, "Ascending"),
+                    m("option", {selected: model.set_sort_order == "Descending"}, "Descending")
+                  ])
+                ])
+              ]),
+              m("div", {class : "sets"}, [
+                model.set_data
+                  // filter out first item which is csv column names
+                  .filter((item, index, arr) => arr.indexOf(item) != 0)
+                  // filter out editions that we don't have
+                  .filter(item => model.user_data.map(x => x[1]).indexOf(item[3]) != -1)
+                  // sort data
+                  .sort(function(a, b) {
+                    if (model.set_sort_by == "Release" && model.set_sort_order == "Ascending")
                       return new Date(a[17]).getTime() - new Date(b[17]).getTime();
-                    })
-                    .map(function(item) {
-                      return m("div", {class: "set"}, [
-                        m("i", {class: "ss ss-" + item[3]}),
-                        m("div", {class: "info"}, [
-                          m(m.route.Link, {href: "/set/" + item[3]}, [
-                            m("span", item[15])
-                          ]),
-                          m("span", item[17])
-                        ])
+                    if (model.set_sort_by == "Release" && model.set_sort_order == "Descending")
+                      return new Date(b[17]).getTime() - new Date(a[17]).getTime();
+                    if (model.set_sort_by == "Name" && model.set_sort_order == "Ascending")
+                      return ('' + a[15]).localeCompare(b[15]);
+                    if (model.set_sort_by == "Name" && model.set_sort_order == "Descending")
+                      return ('' + b[15]).localeCompare(a[15]);
+                  })
+                  .map(function(item) {
+                    return m("div", {class: "set"}, [
+                      m("i", {class: "ss ss-" + item[3]}),
+                      m("div", {class: "info"}, [
+                        m(m.route.Link, {href: "/set/" + item[3]}, [
+                          m("span", item[15])
+                        ]),
+                        m("span", item[17])
                       ])
-                    })
-                  ]),
-              ])
-            ]}
+                    ])
+                  })
+                ]),
+            ])
+          ]}
+      }
+
+      var browse_set = {
+        view: function(vnode) {
+          return [
+            m("h1", "Browsing: " + model.set_data.filter(x => x[3] == vnode.attrs.set)[0][15]),
+            orderCards(),
+            m("div", {class: "cards"}, [
+              model.user_data
+                .filter(item => item[1] == vnode.attrs.set)
+                .sort(sortCard)
+                .map(viewCard)
+            ]),
+          ]
         }
+      }
 
-        var browse_set = {
-          view: function(vnode) {
-            return [
-              m("h1", "Browsing " + set_data.filter(x => x[3] == vnode.attrs.set)[0][15]),
-              m("div", {class: "cards"}, [
-                user_data
-                  .filter(item => item[1] == vnode.attrs.set)
-                  .map(viewCard)
-              ]),
-            ]
-          }
+      var search_result = {
+        view: function(vnode) {
+          return [
+            m("h1", "Search Result for '" + vnode.attrs.term + "'"),
+            orderCards(),
+            m("div", {class: "cards"}, [
+              model.user_data
+                .filter(item => item[0].toLowerCase().indexOf(vnode.attrs.term.toLowerCase()) > -1)
+                .sort(sortCard)
+                .map(viewCard)
+            ]),
+          ]
         }
+      }
 
-        var search_result = {
-          view: function(vnode) {
-            return [
-              m("h1", "Search Result for " + vnode.attrs.term),
-              m("div", {class: "cards"}, [
-                user_data
-                  .filter(item => item[0].toLowerCase().indexOf(vnode.attrs.term.toLowerCase()) > -1)
-                  .map(viewCard)
-              ]),
-            ]
-          }
-        }
 
-        m.route(document.getElementById("content"), "/", {
-          "/": index,
-          "/set/:set": browse_set,
-          "/search/:term": search_result
-        });
-
+      function reloadData() {
         Papa.parse("https://mtgjson.com/api/v5/csv/sets.csv", {
           download: true,
           complete: function(results) {
-            set_data = results.data;
-            loadUserData();
+            model.set_data = results.data;
+            let ud = localStorage.getItem("user_data");
+            if (ud == null) {
+              return;
+            }
+            Papa.parse(ud, {
+              complete: function(results) {
+                model.user_data = results.data;
+                model.stats.card_sum = 0;
+                model.stats.unique_editions = 0;
+                model.stats.unique_cards = 0;
+                model.stats.rares = 0;
+                model.stats.uncommons = 0;
+                model.stats.commons = 0;
+
+                model.user_data
+                  // filter out first item which is csv column names
+                  .filter((item, index, arr) => arr.indexOf(item) != 0)
+                  // sum all quanitity column values
+                  .map(x => model.stats.card_sum += parseInt(x[6]));
+
+                model.user_data
+                  // filter for rarity
+                  .filter(item => item[5] == "rare")
+                  // sum all quanitity column values
+                  .map(x => model.stats.rares += parseInt(x[6]));
+
+                model.user_data
+                  // filter for rarity
+                  .filter(item => item[5] == "uncommon")
+                  // sum all quanitity column values
+                  .map(x => model.stats.uncommons += parseInt(x[6]));
+
+                model.user_data
+                  // filter for rarity
+                  .filter(item => item[5] == "common")
+                  // sum all quanitity column values
+                  .map(x => model.stats.commons += parseInt(x[6]));
+
+                model.stats.unique_editions = model.set_data
+                  // filter out first item which is csv column names
+                  .filter((item, index, arr) => arr.indexOf(item) != 0)
+                  // filter out editions that we don't have
+                  .filter(item => model.user_data.map(x => x[1]).indexOf(item[3]) != -1)
+                  .length;
+
+                model.stats.unique_cards = [...new Set(model.user_data.map(x => x[0]))].length;
+
+                m.route(document.getElementById("content"), "/", {
+                  "/": index,
+                  "/set/:set": browse_set,
+                  "/search/:term": search_result
+                });
+              }
+            });
           }
         });
-
       }
 
-      document.addEventListener("DOMContentLoaded", onDOMReady);
+      document.addEventListener("DOMContentLoaded", reloadData);
     </script>
   </head>
   <body>
