@@ -68,7 +68,6 @@
       header {
         background: linear-gradient(90deg, #00d2ff 0%, #3a47d5 100%);
         z-index: 1;
-        overflow: hidden;
         width: 100%;
         height: 25%;
         top: 0;
@@ -77,7 +76,7 @@
       }
 
       header h1 {
-        font-size: 5em;
+        font-size: 3em;
         font-weight: bold;
         color: white;
         padding: 1em 1.6em;
@@ -115,7 +114,7 @@
 
       .control-group {
         display: inline-block;
-        margin-right: 3em;
+        margin: 1em 3em 1em 0;
       }
 
       .sets {
@@ -159,7 +158,11 @@
 
       .cards {
         display: grid;
-        grid-template-columns: auto auto auto auto;
+      }
+
+      .cards .no-result {
+        font-size: 120%;
+        margin: 2em;
       }
 
       .cards .card {
@@ -196,6 +199,7 @@
 
       .pagination a {
         margin-right: 0.6em;
+        display: inline-block;
       }
 
       .stats {
@@ -209,7 +213,13 @@
         body {
           font-size: 16px;
         }
+        header h1 {
+          font-size: 5em;
+        }
         .sets {
+          grid-template-columns: auto auto;
+        }
+        .cards {
           grid-template-columns: auto auto;
         }
       }
@@ -217,6 +227,9 @@
       @media (min-width: 78em) {
         .sets {
           grid-template-columns: auto auto auto;
+        }
+        .cards {
+          grid-template-columns: auto auto auto auto;
         }
       }
     </style>
@@ -238,6 +251,7 @@
         set_sort_by: "Release",
         cards_sort_by: "Name",
         cards_sort_order: "Ascending",
+        filter_rarity: "All",
         items_per_page: 25
       }
 
@@ -369,10 +383,10 @@
           return m("div", {class: "pagination"}, [
             m("label", "Page: "),
             m(m.route.Link, {href: "/"}, "Home"),
-            min_page != 1 ? m(m.route.Link, {href: prefix + "/page/1"}, "First") : '',
-            m(m.route.Link, {href: prefix + "/page/" + (parseInt(vnode.attrs.page)-1), disabled: vnode.attrs.page == 1}, "Previous"),
+            min_page == 1 ? '' : m(m.route.Link, {href: prefix + "/page/1"}, "First"),
+            pages_len == 0 ? '' : m(m.route.Link, {href: prefix + "/page/" + (parseInt(vnode.attrs.page)-1), disabled: vnode.attrs.page == 1}, "Previous"),
             pages,
-            m(m.route.Link, {href: prefix + "/page/" + (parseInt(vnode.attrs.page)+1), disabled: vnode.attrs.page == pages_len}, "Next"),
+            pages_len == 0 ? '' : m(m.route.Link, {href: prefix + "/page/" + (parseInt(vnode.attrs.page)+1), disabled: vnode.attrs.page == pages_len}, "Next"),
             max_page != pages_len ? m(m.route.Link, {href: prefix + "/page/" + pages_len}, "Last") : ''
           ]);
         },
@@ -391,6 +405,12 @@
           let cards = model.user_data
             // filter out first item which is csv column names
             .filter((item, index, arr) => arr.indexOf(item) != 0)
+            // rarity filter
+            .filter(function(item) {
+              if(model.filter_rarity == "All")
+                return true;
+              return item[5] == model.filter_rarity.toLowerCase();
+            })
             .sort(function(a, b) {
               if (model.cards_sort_by == "Name" && model.cards_sort_order == "Ascending")
                 return ('' + a[0]).localeCompare(b[0]);
@@ -408,7 +428,7 @@
             // filter based on which page we're on
             .filter(function(item) {
               if(vnode.attrs.set)
-                return item [1] == vnode.attrs.set
+                return item[1] == vnode.attrs.set
               else if(vnode.attrs.term)
                 return item[0].toLowerCase().indexOf(vnode.attrs.term.toLowerCase()) > -1
               return true;
@@ -436,6 +456,18 @@
                 }}, [
                   m("option", {selected: model.cards_sort_order == "Ascending"}, "Ascending"),
                   m("option", {selected: model.cards_sort_order == "Descending"}, "Descending")
+                ])
+              ]),
+              m("div", {class: "control-group"}, [
+                m("label", {for: "items-per-page"}, "Rarity: "),
+                m("select", {id: "items-per-page", onchange: function(e) {
+                  model.filter_rarity = e.target.value;
+                }}, [
+                  m("option", {selected: model.filter_rarity == "All"}, "All"),
+                  m("option", {selected: model.filter_rarity == "Mythic"}, "Mythic"),
+                  m("option", {selected: model.filter_rarity == "Rare"}, "Rare"),
+                  m("option", {selected: model.filter_rarity == "Uncommon"}, "Uncommon"),
+                  m("option", {selected: model.filter_rarity == "Common"}, "Common")
                 ])
               ]),
               m("div", {class: "control-group"}, [
@@ -472,7 +504,8 @@
                       ])
                     ])
                   ]);
-                })
+                }),
+              cards.length > 0 ? '' : m("span", {class: "no-result"}, "No results found!")
             ]),
             this.pagination(vnode, page, pages_len),
           ]
@@ -566,7 +599,6 @@
     </header>
     <main>
         <div id="content">
-
         </div>
         <footer> (C) 2025 8bitmcu</footer>
     </main>
