@@ -9,5 +9,5 @@ MTGCollector is a SPA (Single Page Application) that let's you view cards from a
 ## How to use
 
 1. Open index.htm with your favorite browser, alternatively use the live version [here](https://8bitmcu.github.io/mtgcollector).
-2. Upload your manabox .csv file. Optionally try this [example.csv](https://raw.githubusercontent.com/8bitmcu/mtgcollector/refs/heads/main/example.csv) file.
+2. Upload your manabox .csv file, or try the demo link
 3. You should be able to browse by edition and search by name!

@@ -117,6 +117,17 @@
         margin: 1em 3em 1em 0;
       }
 
+      .search {
+        display: flex;
+        flex-direction: column;
+      }
+
+      #searchbox {
+        max-width: 350px;
+        height: 100px;
+        margin-bottom: 0.6em;
+      }
+
       .sets {
         display: grid;
       }
@@ -204,9 +215,10 @@
 
       .stats {
         display: flex;
+        flex-wrap: wrap;
       }
       .stats ul {
-        margin: 0 2em 0 0;
+        margin: 0 2em 2em 0;
       }
 
       @media (min-width: 48em) {
@@ -270,20 +282,35 @@
       var indexpage = {
         view: function(vnode) {
           return [
-            m("h1", "Upload Manabox .csv"),
-            m("input", {type: "file", id: "csv", name: "csv", accept: ".csv", onchange: function() {
-              for (const file of event.target.files) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                  localStorage.setItem("user_data", reader.result);
-                  reloadData();
-                  m.redraw();
-                };
-                reader.readAsText(file);
-              }
-            }}),
+            m("div", {style: {display: model.user_data.length == 0 ? "" : "none"}}, [
+              m("h1", "Upload Manabox .csv"),
+              m("input", {type: "file", id: "csv", name: "csv", accept: ".csv", onchange: function() {
+                for (const file of event.target.files) {
+                  const reader = new FileReader();
+                  reader.onload = function(e) {
+                    try {
+                      localStorage.setItem("user_data", reader.result);
+                    } catch (e) {
+                      alert("Upload failed: file likely too large")
+                    }
+                    reloadData();
+                  };
+                  reader.readAsText(file);
+                }
+              }}),
+              m("h2", [
+                m("a", {href:"#", onclick: function(e) { 
+                  fetch("https://raw.githubusercontent.com/8bitmcu/mtgcollector/refs/heads/main/example.csv")
+                    .then(x => x.text())
+                    .then(function(text) {
+                      localStorage.setItem("user_data", text);
+                      reloadData();
+                    })
+                }}, "Try demo csv")
+              ])
+            ]),
             m("div", {style: {display: model.user_data.length > 0 ? "" : "none"}}, [
-              m("h1", "Stats"),
+              m("h1", "Data"),
               m("div", {class: "stats"}, [
                 m("ul", [
                   m("li", model.stats.card_sum + " cards loaded"),
@@ -296,10 +323,22 @@
                   m("li", model.stats.rares + " rares"),
                   m("li", model.stats.uncommons + " uncommons"),
                   m("li", model.stats.commons + " commons")
+                ]),
+                m("ul", [
+                  m("li", (JSON.stringify(localStorage).length /1024/1024).toFixed(2) + "/5MB used"),
+                  m("li", [
+                    m("a", {href:"#", onclick: function(e) { if (confirm("Are you sure?")) {localStorage.clear(); reloadData()} }}, "Clear all Data")
+                  ])
                 ])
               ]),
               m("h1", "Search"),
-              m("input", {type: "text", onkeyup: function(e) { if(e.code == "Enter") m.route.set("/search/:term/page/1", {term: this.value}) }}),
+              m("div", {class: "search"}, [
+                m("i", "(One search term per line, case insensitive)"),
+                m("textarea", {id: "searchbox"}),
+                m("span", [
+                  m("button", {onclick: function(e) {m.route.set("/search/:term/page/1", {term: document.getElementById("searchbox").value})}}, "Search")
+                ])
+              ]),
               m("h1", [
                 m(m.route.Link, {href: "/all/page/1"}, "Browse All Cards")
               ]),
@@ -398,7 +437,7 @@
             page = "/set/" + vnode.attrs.set;
           }
           else if(vnode.attrs.term) {
-            title = "Search Result for '" + vnode.attrs.term + "'"
+            title = "Search Result for '" + vnode.attrs.term.replaceAll("\n", ", ") + "'"
             page = "/search/" + vnode.attrs.term;
           }
 
@@ -427,10 +466,15 @@
             })
             // filter based on which page we're on
             .filter(function(item) {
-              if(vnode.attrs.set)
+              if (vnode.attrs.set)
                 return item[1] == vnode.attrs.set
-              else if(vnode.attrs.term)
-                return item[0].toLowerCase().indexOf(vnode.attrs.term.toLowerCase()) > -1
+              else if(vnode.attrs.term) {
+                for(const t of vnode.attrs.term.split("\n")) {
+                  if(item[0].toLowerCase().indexOf(t.toLowerCase()) > -1)
+                    return true;
+                }
+                return false;
+              }
               return true;
             });
 
